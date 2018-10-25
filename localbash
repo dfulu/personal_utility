@@ -1,5 +1,5 @@
-
-alias connect='ssh s1205782@ssh.geos.ed.ac.uk'
+#!/bin/bash
+alias sshadder="ssh s1205782@ssh.geos.ed.ac.uk"
 
 function jupyter_forwarding()
 {
@@ -12,4 +12,3 @@ function jupyter_forwarding()
     ssh -L $PortA:localhost:$PortB $user@$HostB -t ssh -L $PortB:localhost:$PortC $user@$HostC
 }
 
-alias chome="cd /mnt/c/Users/User"
