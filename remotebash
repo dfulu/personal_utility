@@ -1,0 +1,140 @@
+# .bashrc
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+	. /etc/bashrc
+fi
+
+# Uncomment the following line if you don't like systemctl's auto-paging feature:
+# export SYSTEMD_PAGER=
+
+# User specific aliases and functions
+
+export servers=(baltic01 baltic02 baltic03 burn achray)
+export jasmin_username=username
+
+function busy()
+{
+    for server in $servers; do
+        echo $server >> serverUsageStats.txt;
+        ssh -o ConnectTimeout=3 -o ConnectionAttempts=1 -q $USER@$server "uptime" >> serverUsageStats.txt;
+    done
+
+    cat serverUsageStats.txt
+    rm -f serverUsageStats.txt
+}
+
+function users()
+{
+   for server in $servers; do
+       echo $server >> userStats.txt;
+       ssh -o ConnectTimeout=3 -o ConnectionAttempts=1 -q $USER@$server "users" >> userStats.txt;
+   done
+
+   cat userStats.txt
+   rm -f userStats.txt
+}
+
+function cpuhog()
+{
+    date +"%D %T"
+    for u in $(ps haux | awk '{print $1}' | sort -u)
+    do
+        echo $u $(top -b -n 1 -u $u | awk -v user=$u 'NR>7 { sum += $9; } END { print sum; }');
+    done
+}
+
+function ramhog()
+{
+	# This script prints the RAM (RSS) used by each user in GB to 2 decimal places
+	# tempsum is calculated in KiB but then we print in GB
+	date +"%D %T"
+	OLDIFS=$IFS
+	IFS=$'\n'
+	tempsum=0
+	totalmem=0
+	for m in `ps -eo user,rss --sort user | sed -e 's/  */ /g' | awk -F'[ ]' {'print $0'}`; do
+	  nu=`echo $m|cut -d" " -f1`
+	  nm=`echo $m|cut -d" " -f2`
+	  # echo "$nu $nm $nu"
+	  if [ "$nu" != "$ou" ] && [ $(echo "$nm"|grep -E "^[0-9]+$") ] 
+	  then 
+	    if [ "$tempsum" -ne 0 ]; then echo $ou $(printf %.2f\\n "$(( $tempsum ))e-6");       fi
+	    ou=$nu
+	    tempsum=$nm
+	    let "totalmem += $nm"
+	  else 
+	    let "tempsum += $nm" 
+	    let "totalmem += $nm"
+	  fi
+	done
+	echo "Total Memory in Use: $totalmem/$(free | grep Mem: | awk '{print $2}')"
+	IFS=$OLDIFS
+}
+
+function jasmin_jup()
+{
+    PortA=$1
+    PortB=$3
+    HostB=jasmin-login1.ceda.ac.uk
+    HostC="jasmin-$2.ceda.ac.uk"
+    eval $(ssh-agent -s)
+    ssh-add ~/.ssh/id_rsa_jasmin
+    echo "ssh -L $PortB:127.0.0.1:$PortB $user@$HostC"
+    ssh -L $PortA:127.0.0.1:$PortB -A $jasmin_username@$HostB
+}
+
+function jasmin_jump()
+{
+    HostB=jasmin-login1.ceda.ac.uk
+    HostC="jasmin-$1.ceda.ac.uk"
+    eval $(ssh-agent -s)
+    ssh-add ~/.ssh/id_rsa_jasmin
+    echo "ssh $user@$HostC"
+    ssh -JA $jasmin_username@$HostB $user@$HostC
+}
+
+
+alias topu="top -u $USER"
+
+# Kill all processes for the current user, will also kill bash!
+alias killallu="killall -u $USER"
+
+# Kill all processes with given name for the current user
+# e.g. 'killallpu python' kills all python processes for current user
+function killallpu(){
+    killall -u $USER $1
+}
+
+# Safe remove, copy, and move.  Prevents accidentally smashing destination
+# file.
+alias rm="rm -i"
+alias cp="cp -i"
+alias mv="mv -i"
+
+# Move up one, two or three levels
+alias ..="cd .."
+alias ...="cd ../.."
+alias ....="cd ../../.."
+
+# Make a directory and then cd into it
+function mkcd(){
+    mkdir $1;
+    cd $1;
+}
+
+# cd into a directory and then list its contents
+function cc(){
+    cd $1;
+   ls;
+}
+
+# Quick simple HTTP server
+alias shs="python -m SimpleHTTPServer"
+
+function clean_conda_export()
+{
+	# $1 is name of environment $2 is name of file to pipe into
+	conda env export -n $1 | grep -v "^prefix: " > $2
+}
+
